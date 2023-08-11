@@ -6,9 +6,9 @@ import torch.nn as nn
 
 def attention(q, k, v, mask=None):
     d_k = k.size(-1)
-    attention_score = torch.matmul(q, k.transpose(-1, -2))
+    attention_score = torch.matmul(q, k.transpose(-1, -2)) / math.sqrt(d_k)
     if mask is not None:
-        attention_score.masked_fill(mask == 0, -1e9) / math.sqrt(d_k)
+        attention_score = attention_score.masked_fill(mask == 0, -1e9)
     attention_score = torch.softmax(attention_score, dim=-1)
 
     output = torch.matmul(attention_score, v)
@@ -17,12 +17,12 @@ def attention(q, k, v, mask=None):
 
 
 class MultiHeadAttention(SubLayer):
-    def __init__(self, d_model=512, num_head=6, dropout=0.1):
+    def __init__(self, d_model=512, num_head=8, dropout=0.1):
         super().__init__(d_model, dropout)
         if d_model % num_head != 0:
             raise RuntimeError(
-                "The hidden size can not be evenly divided by the number \
-                    of heads"
+                "The hidden size can not be evenly divided by the number\
+                    of heads with d_model{} and #head{}".format(d_model, num_head)
             )
         self.head = num_head
         self.d_model = d_model
@@ -60,4 +60,8 @@ class MultiHeadAttention(SubLayer):
 
 if __name__ == "__main__":
     attn = MultiHeadAttention()
-    print(attn)
+    q = torch.randn(1, 5, 5)
+    k = torch.randn(1, 5, 5)
+    v = torch.randn(1, 5, 5)
+    mask = torch.tensor([[1, 1, 1, 0, 0]])
+    print(attention(q, k, v, mask)[1])
