@@ -1,16 +1,20 @@
 import math
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
+
 
 def clone(layer, num):
     from copy import deepcopy
     return nn.ModuleList([deepcopy(layer) for _ in range(num)])
+
 
 def get_subsequent_mask(l):
     all_ones = torch.ones(l, l)
     triu_ones = torch.triu(all_ones, diagonal=1)
 
     return triu_ones == 0
+
 
 def rate(step, model_size, factor, warmup):
     """
@@ -22,6 +26,24 @@ def rate(step, model_size, factor, warmup):
     return factor * (
         model_size ** (-0.5) * min(step ** (-0.5), step * warmup ** (-1.5))
     )
+
+
+def greedy_decode(model, src, src_mask, max_len, start_symbol):
+    memory = model.model.encode(src, src_mask)
+    ys = torch.zeros(1, 1).fill_(start_symbol).type_as(src.data)
+    for i in range(max_len - 1):
+        out = model.model.decode(
+            memory, src_mask, ys, get_subsequent_mask(ys.size(1)).unsqueeze(0).
+            type_as(src.data)
+        )
+        prob = F.linear(out[:, -1], model.shared.embedder.weight)
+        _, next_word = torch.max(prob, dim=1)
+        next_word = next_word.data[0]
+        ys = torch.cat(
+            [ys, torch.zeros(1, 1).type_as(src.data).fill_(next_word)], dim=1
+        )
+    return ys
+
 
 class PositionalEncoding(nn.Module):
     '''
@@ -47,7 +69,8 @@ class PositionalEncoding(nn.Module):
     def forward(self, x):
         x = x + self.position[:x.size(1), :].requires_grad_(False)
         return self.dropout(x)
-    
+
+
 class LayerNorm(nn.Module):
     def __init__(self, d_model, eps=1e-6):
         super().__init__()

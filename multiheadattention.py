@@ -4,12 +4,16 @@ from utils import SubLayer
 import torch.nn as nn
 
 
-def attention(q, k, v, mask=None):
+def attention(q, k, v, mask=None, dropout=None):
     d_k = k.size(-1)
     attention_score = torch.matmul(q, k.transpose(-1, -2)) / math.sqrt(d_k)
     if mask is not None:
+        # print("mask: ", mask.shape)
         attention_score = attention_score.masked_fill(mask == 0, -1e9)
     attention_score = torch.softmax(attention_score, dim=-1)
+
+    if dropout is not None:
+        attention_score = dropout(attention_score)
 
     output = torch.matmul(attention_score, v)
 
@@ -45,7 +49,7 @@ class MultiHeadAttention(SubLayer):
         v = v.view(v.size(0), -1, self.head, self.d_model
                    // self.head).transpose(-2, -3)
 
-        output, attention_score = attention(q, k, v, mask)
+        output, attention_score = attention(q, k, v, mask, self.dropout)
 
         output = (
             output.transpose(-2, -3)
@@ -55,7 +59,7 @@ class MultiHeadAttention(SubLayer):
 
         output = self.w_o(output)
 
-        return output + self.layernorm(self.dropout(output))
+        return output + self.dropout(self.layernorm(output))
 
 
 if __name__ == "__main__":

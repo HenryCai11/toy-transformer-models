@@ -14,4 +14,4 @@ class FeedForwardNetwork(SubLayer):
 
     def forward(self, x):
         x = self.ffn(x)
-        return x + self.layernorm(self.dropout(x))
+        return x + self.dropout(self.layernorm(x))
