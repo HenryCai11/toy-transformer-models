@@ -9,9 +9,9 @@ class FeedForwardNetwork(SubLayer):
         self.ffn = nn.Sequential(
             nn.Linear(d_model, d_model * 4, bias=True),
             nn.ReLU(),
+            nn.Dropout(),
             nn.Linear(d_model * 4, d_model, bias=True)
         )
 
     def forward(self, x):
-        x = self.ffn(x)
-        return x + self.dropout(self.layernorm(x))
+        return x + self.dropout(self.ffn(self.layernorm(x)))

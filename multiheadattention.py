@@ -35,7 +35,11 @@ class MultiHeadAttention(SubLayer):
         self.w_v = nn.Linear(d_model, d_model)
         self.w_o = nn.Linear(d_model, d_model)
 
-    def forward(self, query, key, value, mask=None):
+    def forward(self, query, key, value, mask=None, cross=False):
+        query = self.layernorm(query)
+        if not cross:
+            key = self.layernorm(key)
+            value = self.layernorm(value)
         if mask is not None:
             mask = mask.unsqueeze(dim=1)
         q = self.w_q(query)
@@ -59,7 +63,7 @@ class MultiHeadAttention(SubLayer):
 
         output = self.w_o(output)
 
-        return output + self.dropout(self.layernorm(output))
+        return query + self.dropout(output)
 
 
 if __name__ == "__main__":
